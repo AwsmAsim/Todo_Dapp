@@ -1,5 +1,12 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:todolist_blockchain/linking/contract_linking.dart';
+import 'package:todolist_blockchain/screens/all_todos.dart';
 import 'package:todolist_blockchain/screens/create_todo.dart';
+import 'package:todolist_blockchain/screens/delete_todo.dart';
+import 'package:todolist_blockchain/screens/mark_done.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -12,19 +19,47 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    var contractLinking = Provider.of<ContractLinking>(context);
     return Center(
       child: Column(
         children: [
-          const SizedBox(height: 100),
+          const SizedBox(height: 50),
           CreateButton(
               text: "Create New Todo",
               onPressed: () {
                 toCreate(context);
               }),
-          const SizedBox(height: 70),
-          CreateButton(text: "View All Todos", onPressed: _doNothing),
-          const SizedBox(height: 70),
-          CreateButton(text: "Modify Todo", onPressed: _doNothing)
+          const SizedBox(height: 50),
+          CreateButton(
+            text: "View All Todos",
+            onPressed: () async {
+              bool accessed = await contractLinking.getTodos();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllTodos(
+                    accessed: accessed,
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 50),
+          CreateButton(
+            text: "Mark Done",
+            onPressed: () {
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (context) => MarkDone()));
+            },
+          ),
+          const SizedBox(height: 50),
+          CreateButton(
+            text: "Delete Todo",
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => DeleteTodo()));
+            },
+          ),
         ],
       ),
     );
@@ -35,11 +70,11 @@ class CreateButton extends StatelessWidget {
   CreateButton({Key? key, required this.text, required this.onPressed})
       : super(key: key);
   String text;
-  final onPressed;
+  void Function() onPressed;
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 300,
+      width: 250,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
@@ -52,7 +87,7 @@ class CreateButton extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(20.0),
           child:
-              Text(text, style: TextStyle(color: Colors.black, fontSize: 25)),
+              Text(text, style: TextStyle(color: Colors.black, fontSize: 20)),
         ),
       ),
     );

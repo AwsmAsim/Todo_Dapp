@@ -1,3 +1,5 @@
+// ignore_for_file: empty_catches
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,7 +11,7 @@ class ContractLinking extends ChangeNotifier {
   final String _rpcUrl = "http://127.0.0.1:8545";
   final String _wsUrl = "ws://127.0.0.1:8545/";
   final String _privateKey =
-      "0xd44fe1c876bbb6630e2a384d8eeb71d323fcc6f9fb07952d1e755d06a11c2240";
+      "0x1d195bb5be73dffafe64674c5a57ffd0b0edfacf4221b461500ba68042040557";
 
   late Web3Client _client;
   List<Task> todos = [];
@@ -23,6 +25,7 @@ class ContractLinking extends ChangeNotifier {
   late ContractFunction _markDone;
   late ContractFunction _getTask;
   late ContractFunction _getTaskCount;
+  late ContractFunction _deleteTodo;
 
   ContractLinking() {
     initialSetup();
@@ -40,87 +43,200 @@ class ContractLinking extends ChangeNotifier {
     String abiStringFile =
         await rootBundle.loadString("src/artifacts/TodoList.json");
 
-    var jsonAbi = jsonDecode(abiStringFile) as Map<String, dynamic>;
-    _abiCode = jsonEncode(jsonAbi['abi']);
-    // _contractAddress = EthereumAddress.fromHex(
-    //     jsonAbi['networks']['1660235388841']['address'] as String);
+    var jsonAbi = jsonDecode(abiStringFile);
+
+    _abiCode = jsonEncode(jsonAbi["abi"]);
   }
 
   Future<void> getCredentials() async {
     _credentials = EthPrivateKey.fromHex(_privateKey);
-    // _contractAddress = await _credentials.extractAddress();
     _contractAddress =
-        EthereumAddress.fromHex("0xf726f1fce634059306b1181f94e2920b671bad96");
+        EthereumAddress.fromHex("0xf2a23cA848F4B0702d45f6150099CFb68b585B63");
   }
 
   Future<void> getDeployedContracts() async {
     _contract = DeployedContract(
         ContractAbi.fromJson(_abiCode, 'TodoList'), _contractAddress);
 
-    _getTaskCount = _contract.function('taskCount');
+    _getTaskCount = _contract.function('getTaskCount');
     _addTask = _contract.function('addTask');
     _markDone = _contract.function('markDone');
     _getTask = _contract.function('getTask');
-    getTodos();
+    _deleteTodo = _contract.function('deleteTask');
+    // getTodos();
   }
 
-  getTodos() async {
-    print(_contract.address);
-    print(_getTaskCount.name);
+  Future<bool> getTodos() async {
+    isLoading = true;
+    todos.clear();
+    List<dynamic> taskList = [];
+    notifyListeners();
 
-    List<dynamic> taskList = await _client.call(
-        sender: _contractAddress,
-        contract: _contract,
-        function: _getTaskCount,
-        params: <dynamic>[]);
-    print("Done");
-    print(taskList);
-    int taskCount = taskList[0].toInt();
+    try {
+      taskList = await _client
+          .call(contract: _contract, function: _getTaskCount, params: const []);
+    } catch (e) {
+      print(e);
+      return false;
+    }
+
+    int taskCount = 0;
+    taskCount = taskList[0].toInt();
     taskList.clear();
-    print(taskCount);
+    // print(taskCount);
     for (int i = 1; i <= taskCount; i++) {
-      var eachTask = await _client.call(
+      List<dynamic> eachTask;
+      // try {
+      eachTask = await _client.call(
           contract: _contract, function: _getTask, params: [BigInt.from(i)]);
-      todos.add(Task(
-          id: eachTask[0][0].toInt(),
-          content: eachTask[0][1].toString(),
-          completed: eachTask[0][2]));
+      // print(eachTask);
+      todos.add(
+        Task(
+            id: eachTask[0][0].toInt(),
+            name: eachTask[0][1],
+            aadhaar: eachTask[0][2],
+            pan: eachTask[0][3],
+            bank: eachTask[0][4],
+            ifsc: eachTask[0][5],
+            // branch: eachTask[0][6],
+            // address: eachTask[0][7],
+            phone: eachTask[0][6],
+            doctor: eachTask[0][7],
+            city: eachTask[0][8],
+            pincode: eachTask[0][9],
+            age: eachTask[0][10].toInt(),
+            amount: eachTask[0][11].toInt()),
+      );
+      // } catch (e) {
+      //   print("Error = $e"); // Invalid argument: Invalid typed array length: 32
+      //   return false;
+      // }
     }
     isLoading = false;
-    notifyListeners();
+    // notifyListeners();
+    return true;
   }
 
-  addTask(String content) async {
+  Future<String> addTask(
+      {required String name,
+      required String phone,
+      // required address,
+      required String aadhaar,
+      required int age,
+      required int amount,
+      required String bank,
+      // required branch,
+      required String city,
+      required String doctor,
+      required String ifsc,
+      required String pan,
+      required String pincode}) async {
     isLoading = true;
     notifyListeners();
+    String transactionHash = "";
     try {
-      await _client.sendTransaction(
-          _credentials,
-          Transaction.callContract(
-              contract: _contract,
-              function: _addTask,
-              parameters: [content],
-              maxGas: 1000000));
-    } catch (e) {
-      print("error $e");
-    }
-    getTodos();
-  }
-
-  markDone(int id) async {
-    isLoading = true;
-    notifyListeners();
-    await _client.sendTransaction(
+      transactionHash = await _client.sendTransaction(
         _credentials,
         Transaction.callContract(
-            contract: _contract, function: _markDone, parameters: [id]));
+          contract: _contract,
+          function: _addTask,
+          parameters: [
+            name,
+            aadhaar,
+            pan,
+            bank,
+            ifsc,
+            phone,
+            doctor,
+            city,
+            pincode,
+            BigInt.from(age),
+            BigInt.from(amount)
+          ],
+          maxGas: 1000000,
+        ),
+        chainId: 1337,
+      );
+    } catch (e) {
+      print("Error-11---: $e");
+      print(""" Name = $name,
+          adhar = $aadhaar,
+          pan = $pan,
+          bank = $bank,
+          ifsc = $ifsc,
+          phone = $phone,
+          doctor = $doctor,
+          city = $city,
+          pindeo = $pincode,
+          age = $age,
+          amount = $amount""");
+    }
+    isLoading = false;
+    return transactionHash;
+    // getTodos();
+  }
+
+  Future<String> markDone(int id) async {
+    isLoading = true;
+    notifyListeners();
+    String transactionHash = "";
+    transactionHash = await _client.sendTransaction(
+      _credentials,
+      Transaction.callContract(
+        contract: _contract,
+        function: _markDone,
+        parameters: [BigInt.from(id)],
+      ),
+      chainId: 1337,
+    );
+    return transactionHash;
+  }
+
+  Future<String> deleteTodo(int id) async {
+    isLoading = true;
+    notifyListeners();
+    String transactionHash = "";
+
+    transactionHash = await _client.sendTransaction(
+        _credentials,
+        Transaction.callContract(
+          contract: _contract,
+          function: _deleteTodo,
+          parameters: [BigInt.from(id)],
+        ),
+        chainId: 1337);
+    return transactionHash;
   }
 }
 
 class Task {
   int id;
-  String content;
-  bool completed;
-
-  Task({required this.id, required this.content, required this.completed});
+  String name;
+  String aadhaar;
+  String pan;
+  String bank;
+  String ifsc;
+  // String branch;
+  // String address;
+  String phone;
+  String doctor;
+  String city;
+  String pincode;
+  int age;
+  int amount;
+  Task(
+      {required this.id,
+      required this.name,
+      required this.phone,
+      // required this.address,
+      required this.aadhaar,
+      required this.age,
+      required this.amount,
+      required this.bank,
+      // required this.branch,
+      required this.city,
+      required this.doctor,
+      required this.ifsc,
+      required this.pan,
+      required this.pincode});
 }
